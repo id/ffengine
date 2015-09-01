@@ -1,0 +1,16 @@
+---
+
+- hosts: all
+  become: yes
+  tasks:
+    - name: Add erlang-solutions repo key
+      apt_key: url=https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc state=present
+
+    - name: Add erlang-solutions Erlang/OTP repo
+      apt_repository:
+        repo='deb http://packages.erlang-solutions.com/ubuntu {{ ansible_distribution_release }} contrib'
+        state=present
+
+    - name: Install Erlang/OTP
+      apt: name=erlang state=present update_cache=yes
+

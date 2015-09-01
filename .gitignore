@@ -1,0 +1,6 @@
+/.erlang.mk/
+/.vagrant/
+/_rel/
+/ebin/
+/deps/
+/machines/

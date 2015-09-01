@@ -1,0 +1,14 @@
+{application, ffengine, [
+  {description, ""},
+  {vsn, "0.0.1"},
+  {id, "git"},
+  {modules, []},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib,
+    cowboy
+  ]},
+  {mod, {ffengine_app, []}},
+  {env, []}
+]}.

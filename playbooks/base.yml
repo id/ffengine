@@ -1,0 +1,10 @@
+---
+
+- hosts: all
+  become: yes
+  tasks:
+    - name: Install packages
+      apt: name={{ item }} state=latest update_cache=yes
+      with_items:
+        - git
+        - g++
