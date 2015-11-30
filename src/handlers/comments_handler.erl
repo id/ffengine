@@ -10,7 +10,7 @@
         , handle_post/2
         ]).
 
--record(state, {user_id}).
+-record(state, {user_id, post_id}).
 
 init(_Transport, _Req, _Opts) ->
   {upgrade, protocol, cowboy_rest}.
@@ -29,25 +29,35 @@ is_authorized(Req0, State) ->
     {[], Req} ->
       {{false, ?H_AUTH_TOKEN}, Req, State};
     {Token, Req1} ->
-      {Username, Req2} = cowboy_req:binding(username, Req1),
-      {Permalink, Req} = cowboy_req:binding(permalink, Req2),
-      %% if a user can read a post, they can comment it as well
-      case posts:can_read(Token, Username, Permalink) of
-        true ->
-          {true, Req, State};
+      case tokens:is_valid(Token) of
+        {ok, UserId} ->
+          {Username, Req2} = cowboy_req:binding(username, Req1),
+          {Permalink, Req} = cowboy_req:binding(permalink, Req2),
+          case posts:can_read(UserId, Username, Permalink) of
+            {ok, PostId} ->
+              {true, Req, State#state{user_id = UserId, post_id = PostId}};
+            false ->
+              {{false, ?H_AUTH_TOKEN}, Req, State}
+          end;
         false ->
-          {{false, ?H_AUTH_TOKEN}, Req, State}
+          {{false, ?H_AUTH_TOKEN}, Req1, State}
       end
   end.
 
-handle_post(Req0, State) ->
-  {Token, Req1} = cowboy_req:header(?H_AUTH_TOKEN, Req0, []),
-  {Username, Req2} = cowboy_req:binding(username, Req1),
-  {PostPermalink, Req3} = cowboy_req:binding(permalink, Req2),
-  {ok, Params, Req4} = cowboy_req:body_qs(Req3),
-  Ts = ffengine_utils:ts(),
+handle_post(Req0, #state{user_id = UserId, post_id = PostId} = State) ->
+  {ok, Params, Req1} = cowboy_req:body_qs(Req0),
+  Time = ffengine_utils:utc_time(),
   Body = proplists:get_value(<<"body">>, Params),
-  ok = comments:create(Token, Username, PostPermalink, Body, Ts),
-  {ok, Req} = cowboy_req:reply(201, [], <<>>, Req4),
+  {ok, Req} =
+    case comments:create(UserId, PostId, Body, Time) of
+      {ok, Comment} ->
+        cowboy_req:reply(201, [], ffengine_json:encode(Comment), Req1);
+      {error, already_exists} ->
+        Error = ffengine_json:encode({error, <<"comment already exists">>}),
+        cowboy_req:reply(400, [], Error, Req1);
+      {error, _} ->
+        Error = ffengine_json:encode({error, <<"cannot create comment">>}),
+        cowboy_req:reply(400, [], Error, Req1)
+    end,
   {halt, Req, State}.
 

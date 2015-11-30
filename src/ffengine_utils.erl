@@ -8,13 +8,14 @@
 %% API
 -export([ kv/2
         , kv/3
+        , id/0
         , utc_time/0
-        , utc_time/1
-        , ts/0
-        , ts_to_iso8601_sql/1
-        , ts_to_url/1
+        , time_plus/2
+        , time_to_iso8601/1
+        , time_to_url/1
         , list_to_str/1
         , tuple_to_map/2
+        , comma_separate/1
         ]).
 
 %%%_* API ======================================================================
@@ -30,25 +31,20 @@ kv(Key, Proplist, Default) ->
     false        -> Default
   end.
 
-ts() ->
-  erlang:system_time(micro_seconds).
+id() ->
+  erlang:system_time(). % nano seconds timestamp
 
 utc_time() ->
   calendar:universal_time().
 
-utc_time(Ts) ->
-  MegaSecs = Ts div 1000000000000,
-  Secs = Ts div 1000000 - MegaSecs*1000000,
-  MicroSecs = Ts rem 1000000,
-  calendar:now_to_universal_time({MegaSecs, Secs, MicroSecs}).
+time_plus(DateTime, Seconds) ->
+  calendar:gregorian_seconds_to_datetime(calendar:datetime_to_gregorian_seconds(DateTime) + Seconds).
 
-ts_to_iso8601_sql(Ts) ->
-  {{Year, Month, Day}, {Hour, Minute, Second}} = utc_time(Ts),
-  io_lib:format("'~4w-~2..0w-~2..0w ~2..0w:~2..0w:~2..0w UTC'",
+time_to_iso8601({{Year, Month, Day}, {Hour, Minute, Second}}) ->
+  io_lib:format("~4w-~2..0w-~2..0w ~2..0w:~2..0w:~2..0w UTC",
                 [Year, Month, Day, Hour, Minute, Second]).
 
-ts_to_url(Ts) ->
-  {{Year, Month, Day}, {Hour, Minute, Second}} = utc_time(Ts),
+time_to_url({{Year, Month, Day}, {Hour, Minute, Second}}) ->
   io_lib:format("~4w~2..0w~2..0w_~2..0w~2..0w~2..0w_~5..0w",
                 [Year, Month, Day, Hour, Minute, Second, random:uniform(99999)]).
 
@@ -64,3 +60,17 @@ tuple_to_map([F | Fields], [<<"[null]">> | Values], Map) ->
   tuple_to_map(Fields, Values, Map#{F => []});
 tuple_to_map([F | Fields], [V | Values], Map) ->
   tuple_to_map(Fields, Values, Map#{F => V}).
+
+comma_separate([]) ->
+  [];
+comma_separate([_] = L) ->
+  L;
+comma_separate([_|_] = L) ->
+  comma_separate(L, []).
+
+comma_separate([X], Acc) ->
+  [Acc, ",", X];
+comma_separate([X | Tail], []) ->
+  comma_separate(Tail, [X]);
+comma_separate([X | Tail], Acc) ->
+  comma_separate(Tail, [Acc, ",", X]).

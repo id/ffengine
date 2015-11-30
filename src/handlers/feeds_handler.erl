@@ -41,13 +41,13 @@ is_authorized(Req0, State) ->
   end.
 
 handle_get(Req0, State) ->
-  {Feed, Req1} = cowboy_req:binding(feed, Req0),
+  {FeedName, Req1} = cowboy_req:binding(feed, Req0),
   {ok, Req} =
-    case feeds:read(State#state.user_id, Feed) of
-      {ok, Posts} ->
-        cowboy_req:reply(200, [], ffengine_json:encode(Posts), Req1);
+    case feeds:read(State#state.user_id, FeedName) of
+      {ok, Feed} ->
+        cowboy_req:reply(200, [], ffengine_json:encode(Feed), Req1);
       {error, not_found} ->
-        Json = ffengine_json:encode({error, <<"feed not found">>}),
+        Json = ffengine_json:encode({[{error, <<"feed not found">>}]}),
         cowboy_req:reply(401, [], Json, Req1)
     end,
   {halt, Req, State}.

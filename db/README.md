@@ -10,6 +10,8 @@ Size indicates how many users you want in a test database.
 Other tables will scale proportionally.
 
     cd db
+    wget https://www.cri.ensmp.fr/people/coelho/datafiller
+    chmod +x datafiller
     ./datafiller --size=10 schema.sql > test_data.sql
     psql -d ffengine -h localhost -U ffengine -f test_data.sql
 

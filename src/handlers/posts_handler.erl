@@ -12,7 +12,7 @@
         , handle_post/2
         ]).
 
--record(state, {user_id}).
+-record(state, {user_id, post_id}).
 
 init(_Transport, _Req, _Opts) ->
   {upgrade, protocol, cowboy_rest}.
@@ -36,15 +36,26 @@ is_authorized(Req0, State) ->
 is_authorized(?GET, Req0, State) ->
   {Username, Req1} = cowboy_req:binding(username, Req0),
   {Permalink, Req2} = cowboy_req:binding(permalink, Req1),
-  {Res, Req} = case cowboy_req:header(?H_AUTH_TOKEN, Req2, []) of
-                 {[], Req3} ->
-                   {posts:is_public(Username, Permalink), Req3};
-                 {Token, Req3} ->
-                   {posts:can_read(Token, Username, Permalink), Req3}
-               end,
-  case Res of
-    true  -> {true, Req, State};
-    false -> {{false, ?H_AUTH_TOKEN}, Req, State}
+  case cowboy_req:header(?H_AUTH_TOKEN, Req2, []) of
+    {[], Req} ->
+      case posts:is_public(Username, Permalink) of
+        {ok, PostId} ->
+          {true, Req, State#state{post_id = PostId}};
+        false ->
+          {{false, ?H_AUTH_TOKEN}, Req, State}
+      end;
+    {Token, Req} ->
+      case tokens:is_valid(Token) of
+        {ok, UserId} ->
+          case posts:can_read(UserId, Username, Permalink) of
+            {ok, PostId} ->
+              {true, Req, State#state{user_id = UserId, post_id = PostId}};
+            false ->
+              {{false, ?H_AUTH_TOKEN}, Req, State}
+          end;
+        false ->
+          {{false, ?H_AUTH_TOKEN}, Req, State}
+      end
   end;
 is_authorized(?POST, Req0, State) ->
   case cowboy_req:header(?H_AUTH_TOKEN, Req0, []) of
@@ -58,30 +69,30 @@ is_authorized(?POST, Req0, State) ->
       end
   end.
 
-handle_get(Req0, State) ->
-  {Username, Req1} = cowboy_req:binding(username, Req0),
-  {Permalink, Req2} = cowboy_req:binding(permalink, Req1),
-  {ok, Req} = case posts:read(Username, Permalink) of
+handle_get(Req0, #state{post_id = PostId} = State) ->
+  {ok, Req} = case posts:read(PostId) of
                 {ok, Post} ->
-                  cowboy_req:reply(200, [], ffengine_json:encode(Post), Req2);
+                  cowboy_req:reply(200, [], ffengine_json:encode(Post), Req0);
                 {error, not_found} ->
                   Json = ffengine_json:encode({error, <<"post not found">>}),
-                  cowboy_req:reply(401, [], Json, Req2)
+                  cowboy_req:reply(401, [], Json, Req0)
               end,
   {halt, Req, State}.
 
 handle_post(Req0, #state{user_id = UserId} = State) ->
   {ok, Params, Req1} = cowboy_req:body_qs(Req0),
-  Ts = ffengine_utils:ts(),
-  Permalink = ffengine_utils:ts_to_url(Ts),
+  Time = ffengine_utils:utc_time(),
+  Permalink = ffengine_utils:time_to_url(Time),
   Body = proplists:get_value(<<"body">>, Params),
   {ok, Req} =
-    case posts:create(UserId, Permalink, Body, Ts) of
+    case posts:create(UserId, Permalink, Body, Time) of
       {ok, Post} ->
         cowboy_req:reply(201, [], ffengine_json:encode(Post), Req1);
-      {error, already_exist} ->
-        %% TODO: better error message
-        Error = ffengine_json:encode({error, <<"post with this permalink already exists">>}),
+      {error, already_exists} ->
+        Error = ffengine_json:encode({error, <<"post already exists">>}),
+        cowboy_req:reply(400, [], Error, Req1);
+      {error, _} ->
+        Error = ffengine_json:encode({error, <<"cannot create post">>}),
         cowboy_req:reply(400, [], Error, Req1)
     end,
   {halt, Req, State}.

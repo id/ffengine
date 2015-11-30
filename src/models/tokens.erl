@@ -20,30 +20,22 @@
 new() ->
   base64:encode(crypto:strong_rand_bytes(?TOKEN_LENGTH)).
 
--spec read_default_token(binary()) -> {ok, term()} | false.
+-spec read_default_token(binary()) -> {ok, map()} | {error, any()}.
 read_default_token(UserId) ->
   %% TODO: auto-refresh valid_until or recrete token when expired
-  Ts = ffengine_utils:ts(),
-  Sql = io_lib:format("select token from tokens where user_id = ~s and "
-                      "token_name = 'default' and valid_until > ~s;",
-                      [ UserId
-                      , ffengine_utils:ts_to_iso8601_sql(Ts)]),
-  {ok, _, Res} = ffengine_db:squery(Sql),
-  case Res of
-    []        -> false;
-    [{Token}] -> {ok, Token}
-  end.
+  Time = ffengine_utils:utc_time(),
+  Sql = "select token from tokens where user_id = $1 and token_name = 'default' and valid_until > $2;",
+  Res = ffengine_db:equery(Sql, [UserId, Time]),
+  ffengine_db:parse_select_res(Res).
 
--spec is_valid(binary()) -> {ok, binary()} | false.
+-spec is_valid(binary()) -> {ok, map()} | false.
 is_valid(Token) ->
-  Ts = ffengine_utils:ts(),
-  Sql = io_lib:format("select user_id from tokens where token = ~s and valid_until > ~s;",
-                      [ ffengine_db:sql_escape_str(Token)
-                      , ffengine_utils:ts_to_iso8601_sql(Ts)]),
-  {ok, _, Res} = ffengine_db:squery(Sql),
-  case Res of
-    []          -> false;
-    [{UserId}] -> {ok, UserId}
+  Time = ffengine_utils:utc_time(),
+  Sql = "select user_id from tokens where token = $1 and valid_until > $2;",
+  Res = ffengine_db:equery(Sql, [Token, Time]),
+  case ffengine_db:parse_select_res(Res) of
+    {ok, Data} -> {ok, Data};
+    {error, _} -> false
   end.
 
 %%%_* Internal =================================================================

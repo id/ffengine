@@ -42,5 +42,18 @@
        ).
 
 
+-define(INSERT_USER,         "insert_user").
+-define(INSERT_TOKEN,        "insert_token").
+-define(INSERT_CHANNEL,      "insert_channel").
+-define(INSERT_USER_CHANNEL, "insert_user_channel").
+-define(INSERT_FEED,         "insert_feed").
+-define(INSERT_FEED_CHANNEL, "insert_feed_channel").
+-define(INSERT_POST,         "insert_post").
+-define(INSERT_POST_CHANNEL, "insert_post_channel").
+-define(INSERT_POST_ACTIVITY_HIST, "insert_post_activity_hist").
+-define(INSERT_COMMENT,      "insert_comment").
+-define(INSERT_POST_COMMENTS_CHANNEL, "insert_post_comments_channel").
+-define(UPDATE_POST_RATING,  "update_post_rating").
+
 -endif. % _FFENGINE_HRL_
 

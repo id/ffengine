@@ -1,4 +1,3 @@
-- all id columns are of type bigint, no sequences, ids are generated in the application as a timestamp with micro seconds resolution
 - hide post in a feed
 - ban user
 - private users

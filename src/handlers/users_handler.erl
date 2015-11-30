@@ -69,15 +69,11 @@ do_handle_post([<<"create">>], Req0, State) ->
   Username = proplists:get_value(<<"username">>, Params),
   Pwdhash = erlpass:hash(proplists:get_value(<<"password">>, Params)),
   Email = proplists:get_value(<<"email">>, Params),
-  Ts = ffengine_utils:ts(),
   {ok, Req} =
-    case users:create(Username, Pwdhash, Email, Ts) of
-      true ->
+    case users:create(Username, Pwdhash, Email) of
+      ok ->
         cowboy_req:reply(201, [], <<>>, Req1);
-      false ->
-        Error = ffengine_json:encode({error, <<"error creating user">>}),
-        cowboy_req:reply(400, [], Error, Req1);
-      {error, already_exist} ->
+      {error, already_exists} ->
         Error = ffengine_json:encode({error, <<"user already exists">>}),
         cowboy_req:reply(400, [], Error, Req1)
     end,
@@ -87,14 +83,13 @@ do_handle_post([<<"subscribe">>, Username], Req0, State) when is_binary(Username
   %% TODO: do not subscribe users on themselves
   {ok, Req} =
     case users:subscribe(State#state.user_id, Username) of
-      true ->
+      ok ->
         cowboy_req:reply(200, [], <<>>, Req0);
-      false ->
-        Error = <<"cannot subscribe on ", Username/binary>>,
-        cowboy_req:reply(400, [], ffengine_json:encode({error, Error}), Req0);
-      {error, _}  = Error ->
-        %% TODO: match on known errors only (e.g. Username does not exist),
-        %% don't send out errors from model as is
+      {error, already_exists} ->
+        Error = ffengine_json:encode({error, <<"already subscribed">>}),
+        cowboy_req:reply(400, [], ffengine_json:encode(Error), Req0);
+      {error, _Other} ->
+        Error = ffengine_json:encode({error, <<"cannot subscribe">>}),
         cowboy_req:reply(400, [], ffengine_json:encode(Error), Req0)
     end,
   {halt, Req, State}.
