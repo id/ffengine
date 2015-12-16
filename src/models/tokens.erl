@@ -34,8 +34,10 @@ is_valid(Token) ->
   Sql = "select user_id from tokens where token = $1 and valid_until > $2;",
   Res = ffengine_db:equery(Sql, [Token, Time]),
   case ffengine_db:parse_select_res(Res) of
-    {ok, Data} -> {ok, Data};
-    {error, _} -> false
+    {ok, #{user_id := UserId}} ->
+      {ok, UserId};
+    {error, _} ->
+      false
   end.
 
 %%%_* Internal =================================================================

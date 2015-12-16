@@ -1,12 +1,15 @@
+drop type comment cascade;
+drop type reaction cascade;
+drop type post cascade;
 create type comment as (username text, body text, created_at timestamptz);
 create type reaction as (username text, reaction_type reaction_type, created_at timestamptz);
 create type post as (username text, permalink text, body text,
-                     created_at timestamptz, updated_at timestamptz, post_rating int8,
+                     created_at text, updated_at text, post_rating int8,
                      comments json, reactions json);
 
 create or replace function get_post(post_id int8)
 returns post as $$
-  select u.username, p.permalink, p.body, p.created_at, p.updated_at, p.post_rating,
+  select u.username, p.permalink, p.body, p.created_at::text, p.updated_at::text, p.post_rating,
      json_agg(distinct ((select username from users where user_id = c.user_id), c.body, c.created_at)::comment) as comments,
      json_agg(distinct ((select username from users where user_id = r.user_id), r.reaction_type, r.created_at)::reaction) as reactions
      from posts p join users u using(user_id)
@@ -60,7 +63,7 @@ returns setof post as $$
         join posts using (post_id)
         where f.user_id = userid and f.feed_name = feedname
         order by post_rating desc limit feedlimit offset feedoffset)
-  select u.username, p.permalink, p.body, p.created_at, p.updated_at, p.post_rating,
+  select u.username, p.permalink, p.body, p.created_at::text, p.updated_at::text, p.post_rating,
     json_agg(c.* order by c.created_at asc) as comments, json_agg(distinct r.*) as reactions
     from posts p join users u using(user_id)
     left join comments c using(post_id)

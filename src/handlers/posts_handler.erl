@@ -70,13 +70,14 @@ is_authorized(?POST, Req0, State) ->
   end.
 
 handle_get(Req0, #state{post_id = PostId} = State) ->
-  {ok, Req} = case posts:read(PostId) of
-                {ok, Post} ->
-                  cowboy_req:reply(200, [], ffengine_json:encode(Post), Req0);
-                {error, not_found} ->
-                  Json = ffengine_json:encode({error, <<"post not found">>}),
-                  cowboy_req:reply(401, [], Json, Req0)
-              end,
+  {ok, Req} =
+    case posts:read(PostId) of
+      {ok, Post} ->
+        cowboy_req:reply(200, [], ffengine_json:encode(Post), Req0);
+      {error, not_found} ->
+        Json = ffengine_json:encode({error, <<"post not found">>}),
+        cowboy_req:reply(401, [], Json, Req0)
+    end,
   {halt, Req, State}.
 
 handle_post(Req0, #state{user_id = UserId} = State) ->
