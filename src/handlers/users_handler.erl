@@ -15,6 +15,7 @@
 -record(state, {user_id}).
 
 init(_Transport, _Req, _Opts) ->
+  random:seed(erlang:phash2([node()]), erlang:monotonic_time(), erlang:unique_integer()),
   {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _Opts) ->

@@ -1,8 +1,8 @@
 drop type comment cascade;
 drop type reaction cascade;
 drop type post cascade;
-create type comment as (username text, body text, created_at timestamptz);
-create type reaction as (username text, reaction_type reaction_type, created_at timestamptz);
+create type comment as (username text, body text, created_at text);
+create type reaction as (username text, reaction_type reaction_type, created_at text);
 create type post as (username text, permalink text, body text,
                      created_at text, updated_at text, post_rating int8,
                      comments json, reactions json);
@@ -10,8 +10,8 @@ create type post as (username text, permalink text, body text,
 create or replace function get_post(post_id int8)
 returns post as $$
   select u.username, p.permalink, p.body, p.created_at::text, p.updated_at::text, p.post_rating,
-     json_agg(distinct ((select username from users where user_id = c.user_id), c.body, c.created_at)::comment) as comments,
-     json_agg(distinct ((select username from users where user_id = r.user_id), r.reaction_type, r.created_at)::reaction) as reactions
+     json_agg(distinct ((select username from users where user_id = c.user_id), c.body, c.created_at::text)::comment) as comments,
+     json_agg(distinct ((select username from users where user_id = r.user_id), r.reaction_type, r.created_at::text)::reaction) as reactions
      from posts p join users u using(user_id)
      left join comments c using (post_id)
      left join reactions r using(post_id)
@@ -24,8 +24,9 @@ returns table (post_id int8) as $$
     from posts
     join users using (user_id)
     join post_channels using (post_id)
-    join channels using (channel_id)
-  where users.username = $1 and posts.permalink = $2 and channel_mode = 'public';
+    join channels ch using (channel_id)
+  where users.username = $1 and posts.permalink = $2 and ch.channel_mode = 'public'
+  group by post_channels.post_id;
 $$ language sql stable;
 
 create or replace function can_read_post(user_id int8, username text, permalink text)
@@ -40,8 +41,8 @@ returns table (post_id int8) as $$
     join feed_channels using (feed_id)
     join this_post_channels using (channel_id)
     where f.user_id = $1
-  union all
-  select * from is_post_public($2, $3);
+  union
+  select post_id from is_post_public($2, $3);
 $$ language sql stable;
 
 create or replace function subscribe_on(userid int8, feedname text, username text)
@@ -64,7 +65,8 @@ returns setof post as $$
         where f.user_id = userid and f.feed_name = feedname
         order by post_rating desc limit feedlimit offset feedoffset)
   select u.username, p.permalink, p.body, p.created_at::text, p.updated_at::text, p.post_rating,
-    json_agg(c.* order by c.created_at asc) as comments, json_agg(distinct r.*) as reactions
+     json_agg(distinct ((select username from users where user_id = c.user_id), c.body, c.created_at::text)::comment) as comments,
+     json_agg(distinct ((select username from users where user_id = r.user_id), r.reaction_type, r.created_at::text)::reaction) as reactions
     from posts p join users u using(user_id)
     left join comments c using(post_id)
     left join reactions r using(post_id)
@@ -84,4 +86,11 @@ returns setof subscription as $$
     channel_ids join channels using(channel_id)
                 join user_channels using(channel_id)
                 join users u using(user_id);
+$$ language sql stable;
+
+create or replace function get_comment(comment_id int8)
+returns comment as $$
+  select u.username, c.body, c.created_at::text
+     from comments c join users u using(user_id)
+     where c.comment_id = $1;
 $$ language sql stable;
