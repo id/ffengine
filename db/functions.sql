@@ -69,7 +69,8 @@ returns setof post as $$
     left join comments c using(post_id)
     left join reactions r using(post_id)
     where post_id in (select post_id from post_ids)
-    group by p.post_id, u.username;
+    group by p.post_id, u.username
+    order by p.post_rating desc;
 $$ language sql stable;
 
 drop type subscription cascade;
