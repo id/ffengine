@@ -26,7 +26,12 @@ read_default_token(UserId) ->
   Time = ffengine_utils:utc_time(),
   Sql = "select token from tokens where user_id = $1 and token_name = 'default' and valid_until > $2;",
   Res = ffengine_db:equery(Sql, [UserId, Time]),
-  ffengine_db:parse_select_res(Res).
+  case ffengine_db:parse_select_res(Res) of
+    {ok, #{token := Token}} ->
+      {ok, Token};
+    {error, _} = Error ->
+      Error
+  end.
 
 -spec is_valid(binary()) -> {ok, map()} | false.
 is_valid(Token) ->
