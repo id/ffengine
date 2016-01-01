@@ -53,21 +53,43 @@ read(Username) ->
   ffengine_db:parse_select_res(Res).
 
 subscribe(SubscriberId, TargetUser) ->
-  {ok, Tx} = ffengine_db:tx_begin(),
-  Res = ffengine_db:equery("select channel_id from subscribe_on($1, $2, $3);",
-                           [SubscriberId, ?HOME_FEED, TargetUser]),
-  case ffengine_db:parse_select_res(Res) of
-    {ok, [_|_]} ->
-      ok = ffengine_db:tx_commit(Tx),
+  %% get target user's non-private channels
+  Res0 = ffengine_db:equery("select channel_id from get_user_open_channels($1);",
+                            [TargetUser]),
+  OpenChannels = case ffengine_db:parse_select_res(Res0) of
+                   {ok, Channels1}    -> Channels1;
+                   {error, not_found} -> []
+                 end,
+  %% get target user's private channels
+  Res1 = ffengine_db:equery("select channel_id from get_user_private_channels($1);",
+                            [TargetUser]),
+  PrivateChannels = case ffengine_db:parse_select_res(Res1) of
+                      {ok, Channels2}    -> Channels2;
+                      {error, not_found} -> []
+                    end,
+  %% get user's home feed id
+  Res2 = ffengine_db:equery("select feed_id from feeds where user_id = $1 and feed_name = 'home';",
+                            [SubscriberId]),
+  {ok, #{feed_id := FeedId}} = ffengine_db:parse_select_res(Res2),
+  %% insert records in feed_channels
+  InsertFeedChannels = [{?INSERT_FEED_CHANNEL, [FeedId, ChannelId]} ||
+                         #{channel_id := ChannelId} <- OpenChannels],
+  %% insert records in subscription_requests
+  InsertSubscriptionRequests = [{?INSERT_SUBSCRIPTION_REQUEST, [FeedId, ChannelId]} ||
+                                 #{channel_id := ChannelId} <- PrivateChannels],
+  Batch = lists:append([InsertFeedChannels, InsertSubscriptionRequests]),
+  Res = ffengine_db:execute_batch(Batch),
+  case ffengine_db:verify_results(Res) of
+    ok ->
       ok;
     ?ERROR_DUPLICATE_KEY = Error ->
-      ?ERROR("subscribe user_id ~B on ~s failed: ~p", [SubscriberId, TargetUser, Error]),
-      ok = ffengine_db:tx_rollback(Tx),
+      ?ERROR("subscribe user_id ~B on ~s failed: ~p",
+             [SubscriberId, TargetUser, Error]),
       {error, already_exists};
-    Other ->
-      ok = ffengine_db:tx_rollback(Tx),
-      ?ERROR("subscribe user_id ~B on ~s failed: ~p", [SubscriberId, TargetUser, Other]),
-      {error, other}
+    {error, _} = Error ->
+      ?ERROR("subscribe user_id ~B on ~s failed: ~p",
+             [SubscriberId, TargetUser, Error]),
+      Error
   end.
 
 %%%_* Internal =================================================================

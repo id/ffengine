@@ -158,4 +158,8 @@ statements() ->
      "update posts set post_rating = $2 where post_id = $1;",
      [int8, int8]
     }
+  , {?INSERT_SUBSCRIPTION_REQUEST,
+     "insert into subscription_requests (feed_id, channel_id) values($1, $2);",
+     [int8, int8]
+    }
   ].

@@ -45,15 +45,6 @@ returns table (post_id int8) as $$
   select post_id from is_post_public($2, $3);
 $$ language sql stable;
 
-create or replace function subscribe_on(userid int8, feedname text, username text)
-returns table (feed_id int8, channel_id int8) as $$
-  with
-    user_feed as (select feed_id from feeds where user_id = $1 and feed_name = $2),
-    target_channels as (select channel_id from users join user_channels using (user_id) where username = $3)
-    insert into feed_channels (feed_id, channel_id)
-      select feed_id, channel_id from user_feed, target_channels returning *
-$$ language sql;
-
 create or replace function get_feed(userid int8, feedname text, feedlimit integer, feedoffset integer)
 returns setof post as $$
   with
@@ -94,3 +85,20 @@ returns comment as $$
      from comments c join users u using(user_id)
      where c.comment_id = $1;
 $$ language sql stable;
+
+create or replace function get_user_open_channels(username text)
+returns table (channel_id int8) as $$
+  select channel_id from user_channels
+    join users using (user_id)
+    join channels using (channel_id)
+    where username = $1 and channel_mode <> 'private';
+$$ language sql stable;
+
+create or replace function get_user_private_channels(username text)
+returns table (channel_id int8) as $$
+  select channel_id from user_channels
+    join users using (user_id)
+    join channels using (channel_id)
+    where username = $1 and channel_mode = 'private';
+$$ language sql stable;
+

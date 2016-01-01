@@ -109,6 +109,11 @@ create table channels ( -- df: mult=3.0
     channel_type channel_type not null
 );
 
+create table subscription_requests (
+    feed_id int8 not null references feeds on delete cascade, -- df: sub=serand
+    channel_id int8 not null references channels on delete cascade -- df: sub=serand
+);
+
 create table user_channels ( -- df: mult=3.0
     user_id int8 not null references users on delete cascade, -- df: sub=serand
     channel_id int8 not null references channels on delete cascade, -- df: sub=serand

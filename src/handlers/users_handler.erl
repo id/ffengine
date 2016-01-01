@@ -80,17 +80,15 @@ do_handle_post([<<"create">>], Req0, State) ->
     end,
   {halt, Req, State};
 do_handle_post([<<"subscribe">>, Username], Req0, State) when is_binary(Username) ->
-  %% TODO: handle private users
-  %% TODO: do not subscribe users on themselves
   {ok, Req} =
     case users:subscribe(State#state.user_id, Username) of
       ok ->
         cowboy_req:reply(200, [], <<>>, Req0);
       {error, already_exists} ->
-        Error = ffengine_json:encode({error, <<"already subscribed">>}),
-        cowboy_req:reply(400, [], ffengine_json:encode(Error), Req0);
+        Error = ffengine_json:encode({[{error, <<"already subscribed">>}]}),
+        cowboy_req:reply(400, [], <<Error/binary, "\n">>, Req0);
       {error, _Other} ->
-        Error = ffengine_json:encode({error, <<"cannot subscribe">>}),
-        cowboy_req:reply(400, [], ffengine_json:encode(Error), Req0)
+        Error = ffengine_json:encode({[{error, <<"cannot subscribe">>}]}),
+        cowboy_req:reply(400, [], <<Error/binary, "\n">>, Req0)
     end,
   {halt, Req, State}.

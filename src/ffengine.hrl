@@ -54,6 +54,10 @@
 -define(INSERT_COMMENT,      "insert_comment").
 -define(INSERT_POST_COMMENTS_CHANNEL, "insert_post_comments_channel").
 -define(UPDATE_POST_RATING,  "update_post_rating").
+-define(MAYBE_UPDATE_POST_RATING,  "maybe_update_post_rating").
+-define(INSERT_SUBSCRIPTION_REQUEST, "insert_subscription_request").
+-define(INSERT_REACTION,     "insert_reaction").
+-define(INSERT_POST_REACTIONS_CHANNEL, "insert_post_reactions_channel").
 
 -endif. % _FFENGINE_HRL_
 
