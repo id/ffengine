@@ -49,7 +49,8 @@ create(Username, Pwdhash, Email) ->
   ffengine_db:verify_results(Res).
 
 read(Username) ->
-  Res = ffengine_db:equery("select * from users where username = $1;", [Username]),
+  Res = ffengine_db:equery("select username, screen_name, email, is_private, created_at::text"
+                          " from users where username = $1;", [Username]),
   ffengine_db:parse_select_res(Res).
 
 subscribe(SubscriberId, TargetUser) ->

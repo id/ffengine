@@ -22,12 +22,12 @@ stop(_State) ->
 
 %%% Internal functions ---------------------------------------------------------
 routes() ->
-  [{'_', [ {"/v1/ping", ping_handler, []}
-         , {"/v1/users/[...]", users_handler, []}
+  [{'_', [ {"/ping", ping_handler, []}
+         , {"/v1/users/:username", users_handler, []}
          , {"/v1/sessions", sessions_handler, []}
          , {"/v1/posts/[:username/:permalink]", posts_handler, []}
-         , {"/v1/comments/:username/:permalink", comments_handler, []}
-         , {"/v1/feeds/:feed", feeds_handler, []}
+         , {"/v1/comments/[:username/:permalink]", comments_handler, []}
+         , {"/v1/feeds/:feedname", feeds_handler, []}
          ]}
   ].
 

@@ -12,6 +12,7 @@ Other tables will scale proportionally.
     cd db
     wget https://www.cri.ensmp.fr/people/coelho/datafiller
     chmod +x datafiller
+    sudo apt-get install wamerican
     ./datafiller --size=10 schema.sql > test_data.sql
     psql -d ffengine -h localhost -U ffengine -f test_data.sql
 

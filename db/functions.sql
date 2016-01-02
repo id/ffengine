@@ -48,13 +48,21 @@ $$ language sql stable;
 create or replace function get_feed(userid int8, feedname text, feedlimit integer, feedoffset integer)
 returns setof post as $$
   with
-    post_ids as (
-      select post_id from feeds f
+    src_channels as (
+      select channel_id from feeds f
         join feed_channels using (feed_id)
-        join post_channels using (channel_id)
+        where f.user_id = $1 and f.feed_name = $2
+    ),
+    ch_access as (
+      select channel_id from channel_access where user_id = $1
+    ),
+    post_ids as (
+      select post_id from src_channels
+        join post_channels pch using (channel_id)
+        join channels ch on pch.parent_channel_id = ch.channel_id
         join posts using (post_id)
-        where f.user_id = userid and f.feed_name = feedname
-        order by post_rating desc limit feedlimit offset feedoffset)
+        where ch.channel_mode <> 'private' or ch.channel_id in (select channel_id from ch_access)
+        order by post_rating desc limit $3 offset $4)
   select u.username, p.permalink, p.body, p.created_at::text, p.updated_at::text, p.post_rating,
      json_agg(distinct ((select username from users where user_id = c.user_id), c.body, c.created_at::text)::comment) as comments,
      json_agg(distinct ((select username from users where user_id = r.user_id), r.reaction_type, r.created_at::text)::reaction) as reactions

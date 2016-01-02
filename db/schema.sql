@@ -1,4 +1,4 @@
--- df English: word=/etc/dictionaries-common/words
+-- df English: word=/usr/share/dict/words
 
 create table users ( -- df: mult=1.0
     user_id int8 primary key,
@@ -90,7 +90,7 @@ create index tags_tag_id on post_tags(tag_id);
 create index tags_post_id on post_tags(post_id);
 
 create type reaction_type as enum('like');
-create table reactions ( -- df: mult=10000
+create table reactions ( -- df: mult=1000
     reaction_id int8 primary key,
     user_id int8 not null references users on delete cascade, -- df: sub=serand
     post_id int8 not null references posts on delete cascade, -- df: sub=serand
@@ -109,8 +109,13 @@ create table channels ( -- df: mult=3.0
     channel_type channel_type not null
 );
 
-create table subscription_requests (
-    feed_id int8 not null references feeds on delete cascade, -- df: sub=serand
+-- which post channels a user can read
+-- for private post channels only
+-- filled in automatically when subscription request is approved
+-- also can be altered manually, e.g. an owner can enable access to their private channel
+-- for non-subscribers
+create table channel_access (
+    user_id int8 not null references users on delete cascade, -- df: sub=serand
     channel_id int8 not null references channels on delete cascade -- df: sub=serand
 );
 
@@ -132,11 +137,13 @@ create index group_channels_group_id on group_channels(group_id);
 
 create table post_channels ( -- df: mult=300.0
     post_id int8 not null references posts on delete cascade, -- df: sub=serand
+    parent_channel_id int8 not null references channels on delete cascade, -- df: sub=serand
     channel_id int8 not null references channels on delete cascade, -- df: sub=serand
     primary key (post_id, channel_id)
 );
 create index post_channels_post_id on post_channels(post_id);
 create index post_channels_channel_id on post_channels(channel_id);
+create index post_channels_parent_channel_id on post_channels(parent_channel_id);
 
 create table feeds ( -- df: mult=1.0
     feed_id int8 primary key,
@@ -147,7 +154,7 @@ create table feeds ( -- df: mult=1.0
 create index feeds_user_id on feeds(user_id);
 create index feeds_feed_name on feeds(feed_name);
 
-create table feed_channels ( -- df: mult=300.0
+create table feed_channels ( -- df: mult=3.0
     feed_id int8 not null references feeds on delete cascade, -- df: sub=serand
     channel_id int8 not null references channels on delete cascade, -- df: sub=serand
     primary key (feed_id, channel_id)
@@ -159,6 +166,11 @@ create table feed_local_bumps ( -- df: mult=1000
     feed_id int8 not null references feeds on delete cascade, -- df: sub=serand
     post_id int8 not null references posts on delete cascade, -- df: sub=serand
     post_rating int8 not null
+);
+
+create table subscription_requests (
+    feed_id int8 not null references feeds on delete cascade, -- df: sub=serand
+    channel_id int8 not null references channels on delete cascade -- df: sub=serand
 );
 
 alter table users owner to ffengine;

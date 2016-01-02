@@ -77,7 +77,7 @@ handle_get(Req0, #state{post_id = PostId} = State) ->
         cowboy_req:reply(200, [], ffengine_json:encode(Post), Req0);
       {error, not_found} ->
         Json = ffengine_json:encode({error, <<"post not found">>}),
-        cowboy_req:reply(401, [], Json, Req0)
+        cowboy_req:reply(404, [], Json, Req0)
     end,
   {halt, Req, State}.
 
