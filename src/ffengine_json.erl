@@ -17,7 +17,7 @@ encode(Term) -> do_encode(Term).
 decode(Bin) -> unwrap(do_decode(Bin)).
 
 %%%_ * Internal functions ------------------------------------------------------
-do_encode(Term) -> jiffy:encode(Term).
+do_encode(Term) -> <<(jiffy:encode(Term))/binary, "\n">>.
 
 do_decode(Bin) -> jiffy:decode(Bin).
 

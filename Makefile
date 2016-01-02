@@ -1,8 +1,8 @@
 PROJECT = ffengine
 DEPS = cowboy jiffy bcrypt poolboy epgsql lager erlpass
-
-dep_bcrypt = git https://github.com/opscode/erlang-bcrypt.git master
 dep_epgsql = git https://github.com/epgsql/epgsql.git devel
+
+NO_MAKEDEP ?= 1
 
 include erlang.mk
 

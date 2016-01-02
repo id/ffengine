@@ -32,63 +32,80 @@ allowed_methods(Req, State) ->
   {[?GET, ?POST], Req, State}.
 
 is_authorized(Req0, State) ->
-  {Method, Req1} = cowboy_req:method(Req0),
-  {PathInfo, Req} = cowboy_req:path_info(Req1),
-  is_authorized(Method, PathInfo, Req, State).
+  {Method, Req} = cowboy_req:method(Req0),
+  is_authorized(Method, Req, State).
 
-is_authorized(?POST, [<<"create">>], Req, State) ->
-  %% anybody can create a user
+is_authorized(?GET, Req, State) ->
   {true, Req, State};
-is_authorized(?POST, [<<"subscribe">> | _], Req0, State) ->
-  %% only authenticated users can subscribe on other users
-  case cowboy_req:header(?H_AUTH_TOKEN, Req0, []) of
-    {[], Req} ->
-      {{false, ?H_AUTH_TOKEN}, Req, State};
-    {Token, Req} ->
-      ?DEBUG("Token: ~p", [Token]),
-      case tokens:is_valid(Token) of
-        {ok, UserId} -> {true, Req, State#state{user_id = UserId}};
-        false        -> {{false, ?H_AUTH_TOKEN}, Req, State}
-      end
-  end;
-is_authorized(?POST, _, Req, State) ->
-  cowboy_req:reply(404, [], <<>>, Req),
+is_authorized(?POST, Req0, State) ->
+  {Username, Req1} = cowboy_req:binding(username, Req0),
+  case Username of
+    <<"new">> ->
+      {true, Req1, State};
+    <<"subscribe">> ->
+      case cowboy_req:header(?H_AUTH_TOKEN, Req1, []) of
+        {[], Req} ->
+          {{false, ?H_AUTH_TOKEN}, Req, State};
+        {Token, Req} ->
+          case tokens:is_valid(Token) of
+            {ok, UserId} ->
+              {true, Req, State#state{user_id = UserId}};
+            false ->
+              {{false, ?H_AUTH_TOKEN}, Req, State}
+          end
+      end;
+    _ ->
+      Error = ffengine_json:encode({[{error, <<"bad request">>}]}),
+      {ok, Req} = cowboy_req:reply(400, [], Error, Req1),
+      {halt, Req, State}
+  end.
+
+%% get user info
+handle_get(Req0, State) ->
+  {Username, Req1} = cowboy_req:binding(username, Req0),
+  {ok, Req} =
+    case users:read(Username) of
+      {ok, User} ->
+        cowboy_req:reply(200, [], ffengine_json:encode(User), Req1);
+      {error, not_found} ->
+        Json = ffengine_json:encode({error, <<"user not found">>}),
+        cowboy_req:reply(404, [], Json, Req1)
+    end,
   {halt, Req, State}.
 
-handle_get(Req, State) ->
-  %% TODO: return info about user (general info, subscriptions, subscribers, etc.)
-  %% check if user is private in is_authorized
-  {<<>>, Req, State}.
-
+%% create new user
 handle_post(Req0, State) ->
-  {PathInfo, Req} = cowboy_req:path_info(Req0),
-  ?DEBUG("[~p] PathInfo: ~p", [?MODULE, PathInfo]),
-  do_handle_post(PathInfo, Req, State).
+  {Username, Req1} = cowboy_req:binding(username, Req0),
+  {ok, Req} =
+    case Username of
+      <<"new">>       -> create(Req1, State);
+      <<"subscribe">> -> subscribe(Req1, State)
+    end,
+  {halt, Req, State}.
 
-do_handle_post([<<"create">>], Req0, State) ->
+create(Req0, _State) ->
   {ok, Params, Req1} = cowboy_req:body_qs(Req0),
   Username = proplists:get_value(<<"username">>, Params),
   Pwdhash = erlpass:hash(proplists:get_value(<<"password">>, Params)),
   Email = proplists:get_value(<<"email">>, Params),
-  {ok, Req} =
-    case users:create(Username, Pwdhash, Email) of
-      ok ->
-        cowboy_req:reply(201, [], <<>>, Req1);
-      {error, already_exists} ->
-        Error = ffengine_json:encode({error, <<"user already exists">>}),
-        cowboy_req:reply(400, [], Error, Req1)
-    end,
-  {halt, Req, State};
-do_handle_post([<<"subscribe">>, Username], Req0, State) when is_binary(Username) ->
-  {ok, Req} =
-    case users:subscribe(State#state.user_id, Username) of
-      ok ->
-        cowboy_req:reply(200, [], <<>>, Req0);
-      {error, already_exists} ->
-        Error = ffengine_json:encode({[{error, <<"already subscribed">>}]}),
-        cowboy_req:reply(400, [], <<Error/binary, "\n">>, Req0);
-      {error, _Other} ->
-        Error = ffengine_json:encode({[{error, <<"cannot subscribe">>}]}),
-        cowboy_req:reply(400, [], <<Error/binary, "\n">>, Req0)
-    end,
-  {halt, Req, State}.
+  case users:create(Username, Pwdhash, Email) of
+    ok ->
+      cowboy_req:reply(201, [], <<>>, Req1);
+    {error, already_exists} ->
+      Error = ffengine_json:encode({error, <<"user already exists">>}),
+      cowboy_req:reply(400, [], Error, Req1)
+  end.
+
+subscribe(Req0, State) ->
+  {ok, Params, Req} = cowboy_req:body_qs(Req0),
+  Username = proplists:get_value(<<"username">>, Params),
+  case users:subscribe(State#state.user_id, Username) of
+    ok ->
+      cowboy_req:reply(200, [], <<>>, Req);
+    {error, already_exists} ->
+      Error = ffengine_json:encode({[{error, <<"already subscribed">>}]}),
+      cowboy_req:reply(400, [], Error, Req);
+    {error, _Other} ->
+      Error = ffengine_json:encode({[{error, <<"cannot subscribe">>}]}),
+      cowboy_req:reply(400, [], Error, Req)
+  end.

@@ -1,0 +1,13 @@
+sudo: required
+language: erlang
+otp_release:
+  - 18.2
+addons:
+  - postgresql: "9.3"
+services:
+  - postgresql
+before_script:
+  - db/init.sh
+script:
+  - make tests
+
