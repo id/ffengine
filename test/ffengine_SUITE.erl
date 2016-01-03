@@ -13,7 +13,9 @@
 suite() -> [{timetrap, {seconds, 30}}].
 
 init_per_suite(Config) ->
-  inets:start(),
+  [application:set_env(ffengine, K, V) || {K, V} <- ffengine_config()],
+  {ok, _} = application:ensure_all_started(ffengine),
+  {ok, _} = application:ensure_all_started(inets),
   Config.
 
 end_per_suite(_Config) ->
@@ -48,8 +50,21 @@ all() -> [F || {F, _A} <- module_info(exports),
 
 t_ping(Config) when is_list(Config) ->
   {ok, Response} = httpc:request(get, {?URI ++ "/ping", []}, [], []),
-  ct:pal("Response = ~p", [Response]),
   {Http, _Headers, Body} = Response,
   ?assertMatch({"HTTP/1.1", 200, "OK"}, Http),
   ?assertMatch([{<<"reply">>,<<"pong">>}], ffengine_json:decode(Body)).
 
+ffengine_config() ->
+  [ {db,
+     [ {host, "localhost"}
+     , {port, 5432}
+     , {username, "ffengine"}
+     , {password, "ffengine"}
+     , {database, "ffengine"}
+     ]}
+  , {http_port, 3000}
+  , {lager,
+    [ {handlers,
+       [{lager_console_backend, debug}]}
+    ]}
+  ].
