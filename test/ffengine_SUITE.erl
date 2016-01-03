@@ -47,6 +47,6 @@ all() -> [F || {F, _A} <- module_info(exports),
 %%%_* Test functions ===========================================================
 
 t_ping(Config) when is_list(Config) ->
-  {ok, Response} = httpc:request(post, {?URI ++ "/ping", []}, []),
+  {ok, Response} = httpc:request(post, {?URI ++ "/ping", []}, [], []),
   ct:pal("Response = ~p", [Response]).
 
