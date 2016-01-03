@@ -13,7 +13,7 @@
 suite() -> [{timetrap, {seconds, 30}}].
 
 init_per_suite(Config) ->
-  application:start(inets),
+  inets:start(),
   Config.
 
 end_per_suite(_Config) ->
@@ -47,6 +47,9 @@ all() -> [F || {F, _A} <- module_info(exports),
 %%%_* Test functions ===========================================================
 
 t_ping(Config) when is_list(Config) ->
-  {ok, Response} = httpc:request(post, {?URI ++ "/ping", []}, [], []),
-  ct:pal("Response = ~p", [Response]).
+  {ok, Response} = httpc:request(get, {?URI ++ "/ping", []}, [], []),
+  ct:pal("Response = ~p", [Response]),
+  {Http, _Headers, Body} = Response,
+  ?assertMatch({"HTTP/1.1", 200, "OK"}, Http),
+  ?assertMatch([{<<"reply">>,<<"pong">>}], ffengine_json:decode(Body)).
 
