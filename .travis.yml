@@ -1,7 +1,10 @@
+sudo: required
 language: erlang
 otp_release:
   - 17.4
   - 18.2
+addons:
+  - postgresql: "9.4"
 services:
   - postgresql
 before_script:
