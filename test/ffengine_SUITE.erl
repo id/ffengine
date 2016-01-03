@@ -4,7 +4,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
--include_lib("ffengine/src/ffengine.hrl").
+-include("src/ffengine.hrl").
 
 -define(URI, "http://localhost:3000").
 
