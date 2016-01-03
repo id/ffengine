@@ -1,4 +1,7 @@
 # ffengine
+
+[![Build Status](https://travis-ci.org/id/ffengine.svg)](https://travis-ci.org/id/ffengine)
+
 Yet another FriendFeed clone.
 
 Under development.
